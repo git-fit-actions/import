@@ -323,7 +323,7 @@ async function processSource(
 
 function summaryTable(results: SourceResult[]): string {
   const escape = (s: string): string => s.replace(/\|/g, "\\|");
-  let out = "### GitFit Import\n\n| Source | Status | data_hash | Details |\n|--------|--------|-----------|---------|\n";
+  let out = "### GitFit import\n\n| Source | Status | data_hash | Details |\n|--------|--------|-----------|---------|\n";
   for (const r of results) {
     const title = KNOWN_SOURCES[r.source]?.title ?? r.source;
     const hash = r.dataHash ? r.dataHash.slice(0, 12) : "—";

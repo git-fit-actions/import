@@ -68314,7 +68314,7 @@ async function processSource(source, cfg, dbPath, storeStateFlag) {
 }
 function summaryTable(results) {
   const escape2 = (s) => s.replace(/\|/g, "\\|");
-  let out = "### GitFit import\n\n| Source | Status | data_hash | Details |\n|--------|--------|-----------|---------|\n";
+  let out = "### GitFit import\n\n| Source | Status | data_hash | Details |\n|:---|:---:|:---:|:---|\n";
   for (const r of results) {
     const title = KNOWN_SOURCES[r.source]?.title ?? r.source;
     const hash = r.dataHash ? r.dataHash.slice(0, 12) : "\u2014";

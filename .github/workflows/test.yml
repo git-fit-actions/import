@@ -1,0 +1,64 @@
+name: Test import action
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint GitHub Actions workflows
+        id: actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          shellcheck: false
+      - name: Write actionlint summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Actionlint"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| actionlint | ${{ steps.actionlint.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| workflows checked | $(find .github/workflows -maxdepth 1 -name '*.yml' | wc -l || true) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        id: install
+        run: npm ci
+      - name: Type check
+        id: typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        id: tests
+        run: npm test 2>&1 | tee /tmp/unit-test-output.txt
+      - name: Write unit summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Unit tests"
+            echo ""
+            echo "| Step | Status |"
+            echo "|------|--------|"
+            echo "| npm ci | ${{ steps.install.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| typecheck | ${{ steps.typecheck.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| unit tests | ${{ steps.tests.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| tests | $(grep -oE '[0-9]+ pass' /tmp/unit-test-output.txt | head -1 || echo 'n/a') |"
+          } >> "$GITHUB_STEP_SUMMARY"

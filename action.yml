@@ -1,0 +1,52 @@
+name: GitFit Import
+description: >
+  Import data sources (apple_health | 2bulu | gpx | fit | tcx) from their git
+  branches. Detects changes via directory tree hash, downloads files
+  (git show | git lfs smudge), runs `git fit import <cmd>`, and caches import
+  state markers for skip detection.
+
+author: Lax
+branding:
+  icon: download
+  color: blue
+
+inputs:
+  sources:
+    description: >
+      Comma- or newline-separated list of import sources.
+      Supported: apple_health, 2bulu, gpx, fit, tcx.
+    required: true
+  db-path:
+    description: SQLite database path
+    required: false
+    default: data/db/workouts.db
+  store-state:
+    description: >
+      Push SHA256SUMS back to the import branch after a successful import.
+      Requires git push auth; failure is non-blocking.
+    required: false
+    default: 'true'
+  branch:
+    description: >
+      Git branch override. Supports the `{source}` placeholder, expanded per
+      source (e.g. `GitFit/import/dev-{source}`). A literal value (no
+      placeholder) points every source at one monorepo branch that must contain
+      the per-source `data/import/<source>` subdirectories.
+    required: false
+  cache-key:
+    description: >
+      Cache key prefix override. Supports the `{source}` placeholder for
+      readable per-source keys (default `import-{source}-v0-marker`).
+    required: false
+
+outputs:
+  changed:
+    description: Whether any source was imported
+  imported_sources:
+    description: Comma-joined list of sources that were imported
+  skipped_sources:
+    description: Comma-joined list of sources that were skipped
+
+runs:
+  using: node24
+  main: dist/index.js

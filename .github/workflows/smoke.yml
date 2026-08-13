@@ -1,0 +1,131 @@
+name: Smoke import
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  schedule:
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      git-fit-version:
+        description: >
+          git-fit gem version constraint to smoke against (e.g. "~> 0.13.0").
+          Empty defaults to the latest release.
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+
+      - name: Install git-fit gem (for the action to shell out to)
+        id: gem-install
+        run: |
+          mkdir -p /tmp/smoke-gem
+          cd /tmp/smoke-gem
+          bundle init
+          if [[ -n "${{ github.event.inputs.git-fit-version }}" ]]; then
+            bundle add git-fit --version "${{ github.event.inputs.git-fit-version }}"
+          else
+            bundle add git-fit
+          fi
+          echo "BUNDLE_GEMFILE=/tmp/smoke-gem/Gemfile" >> "$GITHUB_ENV"
+          echo "git-fit-version=$(bundle exec ruby -e 'print Gem.loaded_specs["git-fit"].version')" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare test data branch (isolated, no history)
+        id: data-branch
+        env:
+          BRANCH: GitFit/import/test-smoke-${{ github.run_id }}
+        run: |
+          rm -rf /tmp/smoke-repo
+          git init -q -b master /tmp/smoke-repo
+          cd /tmp/smoke-repo
+          git config user.name "git-fit-bot"
+          git config user.email "bot@git-fit-actions"
+          mkdir -p data/import/gpx
+          cat > data/import/gpx/smoke.gpx << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+            <trk>
+              <name>smoke-test-run</name>
+              <trkseg>
+                <trkpt lat="31.2304" lon="121.4737">
+                  <ele>4.0</ele>
+                  <time>2026-08-13T00:00:00Z</time>
+                </trkpt>
+                <trkpt lat="31.2305" lon="121.4738">
+                  <ele>4.1</ele>
+                  <time>2026-08-13T00:01:00Z</time>
+                </trkpt>
+                <trkpt lat="31.2306" lon="121.4739">
+                  <ele>4.2</ele>
+                  <time>2026-08-13T00:02:00Z</time>
+                </trkpt>
+              </trkseg>
+            </trk>
+          </gpx>
+          EOF
+          git add -A
+          git commit -qm "smoke test data"
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY.git" \
+            "HEAD:refs/heads/$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Run import action against test branch
+        id: import
+        uses: ./
+        with:
+          sources: gpx
+          db-path: data/db/smoke.db
+          store-state: 'true'
+          branch: ${{ steps.data-branch.outputs.branch }}
+          cache-key: import-smoke-{source}-${{ github.run_id }}
+
+      - name: Assert import results
+        id: assert
+        run: |
+          echo "${{ steps.import.outputs.imported_sources }}" | grep -q gpx
+          test -f data/import/gpx/.import-marker
+          test -f data/db/smoke.db
+          test "$(bundle exec ruby -rsequel -e '
+            db = Sequel.sqlite("data/db/smoke.db")
+            print db[:activities].where(source: "gpx").count
+          ')" = "1"
+
+      - name: Write smoke summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Smoke import"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| git-fit version | \`${{ steps.gem-install.outputs.git-fit-version }}\` |"
+            echo "| version source | ${{ github.event.inputs.git-fit-version || 'latest (default)' }} |"
+            echo "| trigger | ${{ github.event_name }} |"
+            echo "| import action | ${{ steps.import.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| imported sources | ${{ steps.import.outputs.imported_sources || '—' }} |"
+            echo "| changed | ${{ steps.import.outputs.changed }} |"
+            echo "| assert | ${{ steps.assert.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| test branch | \`${{ steps.data-branch.outputs.branch }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up test data branch
+        if: always()
+        env:
+          BRANCH: ${{ steps.data-branch.outputs.branch }}
+        run: |
+          git push -q "https://x-access-token:${{ github.token }}@github.com/$GITHUB_REPOSITORY.git" \
+            --delete "refs/heads/$BRANCH" || true

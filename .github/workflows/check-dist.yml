@@ -1,0 +1,46 @@
+name: Check dist
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  check-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        id: install
+        run: npm ci
+      - name: Build
+        id: build
+        run: npm run build
+      - name: Assert dist is up to date
+        id: dist-check
+        run: |
+          if ! git diff --exit-code -- dist/index.js dist/shared.cjs; then
+            echo "::error::dist is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi
+      - name: Write check-dist summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Check dist"
+            echo ""
+            echo "| Step | Status |"
+            echo "|------|--------|"
+            echo "| npm ci | ${{ steps.install.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| build | ${{ steps.build.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| dist up to date | ${{ steps.dist-check.outcome == 'success' && '✅' || '❌' }} |"
+            echo "| dist size | \`$(du -h dist/index.js | cut -f1)\` + \`$(du -h dist/shared.cjs | cut -f1)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -2,7 +2,7 @@ name: Check dist
 
 on:
   push:
-    branches: [master]
+    branches: [mainline]
     tags: ['v*']
 
 permissions:

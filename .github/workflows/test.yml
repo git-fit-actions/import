@@ -2,8 +2,9 @@ name: Test import action
 
 on:
   push:
-    branches: [master]
+    branches: [mainline]
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read

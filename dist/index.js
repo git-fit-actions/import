@@ -68085,6 +68085,26 @@ function isZipArchive(buf) {
   const d = buf[3];
   return c === 3 && d === 4 || c === 5 && d === 6 || c === 7 && d === 8;
 }
+var LEGEND = "_\u2705 \u6B63\u5E38\u4EA7\u51FA \xB7 \u23ED\uFE0F \u9884\u6599\u5185\u65E0\u53D8\u5316/\u515C\u5E95 \xB7 \u274C \u5931\u8D25_";
+var GLYPH_OK = /* @__PURE__ */ new Set(["hit", "ok", "saved", "imported", "attempted", "changed", "pushed", "present", "cache"]);
+var GLYPH_SKIP = /* @__PURE__ */ new Set(["miss", "skipped", "unchanged", "none", "git"]);
+var GLYPH_FAIL = /* @__PURE__ */ new Set(["failed", "errors", "missing"]);
+var LEGEND_TRIGGER = /* @__PURE__ */ new Set(["miss", "failed", "errors", "missing"]);
+function needsLegend(statuses) {
+  return statuses.some((s) => LEGEND_TRIGGER.has(s.split(/\s/)[0]));
+}
+function glyphFor(status) {
+  if (GLYPH_OK.has(status) || GLYPH_OK.has(status.split(/\s/)[0])) {
+    return `\u2705 ${status}`;
+  }
+  if (GLYPH_SKIP.has(status) || GLYPH_SKIP.has(status.split(/\s/)[0])) {
+    return `\u23ED\uFE0F ${status}`;
+  }
+  if (GLYPH_FAIL.has(status) || GLYPH_FAIL.has(status.split(/\s/)[0])) {
+    return `\u274C ${status}`;
+  }
+  return status;
+}
 
 // src/index.ts
 function git(args, env = {}) {
@@ -68314,15 +68334,20 @@ async function processSource(source, cfg, dbPath, storeStateFlag) {
 }
 function summaryTable(results) {
   const escape2 = (s) => s.replace(/\|/g, "\\|");
-  let out = "### GitFit import\n\n| Source | Status | data_hash | Details |\n|:---|:---:|:---:|:---|\n";
+  let out = `### GitFit import
+
+| Source | Status | data_hash | Details |
+|:---|:---:|:---:|:---|
+`;
   for (const r of results) {
     const title = KNOWN_SOURCES[r.source]?.title ?? r.source;
     const hash = r.dataHash ? r.dataHash.slice(0, 12) : "\u2014";
     const details = r.status === "skipped" && r.skipReason ? r.skipReason : r.status === "failed" && r.error ? r.error : "\u2014";
-    out += `| ${escape2(title)} | ${r.status} | ${hash} | ${escape2(details)} |
+    out += `| ${escape2(title)} | ${glyphFor(r.status)} | ${hash} | ${escape2(details)} |
 `;
   }
-  return out;
+  return needsLegend(results.map((r) => r.status)) ? `${out}
+${LEGEND}` : out;
 }
 async function run() {
   const sources = parseSources(getInput("sources"));

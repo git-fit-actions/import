@@ -97,7 +97,7 @@ npm test        # builds dist then runs node --test
 npm run build:check   # asserts dist is up to date
 ```
 
-CI runs on push to `master` and on tag push (`v*`): `check-dist` (dist
+CI runs on push to `mainline` (default branch) and on tag push (`v*`): `check-dist` (dist
 freshness), `test` (actionlint + unit tests), and `smoke` (real import against
 a throwaway branch, cleaned up afterwards). `smoke` runs against the latest
 git-fit release by default; trigger it manually with `workflow_dispatch` and set

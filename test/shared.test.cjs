@@ -10,12 +10,15 @@ const { execFileSync } = require("node:child_process");
 
 const {
   EMPTY_TREE_HASH,
+  LEGEND,
   ValidationError,
   compareChecksums,
   computeTreeHashFromLS,
   generateSHA256SUMS,
+  glyphFor,
   isZipArchive,
   listDataFiles,
+  needsLegend,
   parseSources,
   readImportMarker,
   resolveConfig,
@@ -464,4 +467,28 @@ test("isZipArchive: plain garbage rejected", () => {
 test("isZipArchive: too short rejected", () => {
   assert.equal(isZipArchive(Buffer.from("PK")), false);
   assert.equal(isZipArchive(Buffer.alloc(0)), false);
+});
+
+// ── glyphFor / LEGEND ──
+
+test("glyphFor: ok/neutral/fail statuses and unknown passthrough", () => {
+  assert.equal(glyphFor("imported"), "✅ imported");
+  assert.equal(glyphFor("skipped"), "⏭️ skipped");
+  assert.equal(glyphFor("failed"), "❌ failed");
+  assert.equal(glyphFor("unknown-thing"), "unknown-thing");
+});
+
+test("LEGEND: single shared line documents all three glyphs", () => {
+  assert.match(LEGEND, /✅/);
+  assert.match(LEGEND, /⏭️/);
+  assert.match(LEGEND, /❌/);
+  assert.ok(!LEGEND.includes("\n"), "legend is a single line");
+});
+
+test("needsLegend: true when any attention status present, false for normal", () => {
+  assert.equal(needsLegend(["failed"]), true);
+  assert.equal(needsLegend(["imported", "failed"]), true);
+  assert.equal(needsLegend(["imported"]), false);
+  assert.equal(needsLegend(["imported", "skipped"]), false);
+  assert.equal(needsLegend([]), false);
 });

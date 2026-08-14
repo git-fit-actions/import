@@ -35,6 +35,7 @@ __export(shared_exports, {
   DIR_TEMPLATE: () => DIR_TEMPLATE,
   EMPTY_TREE_HASH: () => EMPTY_TREE_HASH,
   KNOWN_SOURCES: () => KNOWN_SOURCES,
+  LEGEND: () => LEGEND,
   ValidationError: () => ValidationError,
   compareChecksums: () => compareChecksums,
   computeChecksumMap: () => computeChecksumMap,
@@ -42,11 +43,13 @@ __export(shared_exports, {
   countFiles: () => countFiles,
   expandTemplate: () => expandTemplate,
   generateSHA256SUMS: () => generateSHA256SUMS,
+  glyphFor: () => glyphFor,
   hashFile: () => hashFile,
   isDirectory: () => isDirectory,
   isFile: () => isFile,
   isZipArchive: () => isZipArchive,
   listDataFiles: () => listDataFiles,
+  needsLegend: () => needsLegend,
   parseChecksumFile: () => parseChecksumFile,
   parseSources: () => parseSources,
   readImportMarker: () => readImportMarker,
@@ -294,6 +297,26 @@ function isZipArchive(buf) {
   const d = buf[3];
   return c === 3 && d === 4 || c === 5 && d === 6 || c === 7 && d === 8;
 }
+var LEGEND = "_\u2705 \u6B63\u5E38\u4EA7\u51FA \xB7 \u23ED\uFE0F \u9884\u6599\u5185\u65E0\u53D8\u5316/\u515C\u5E95 \xB7 \u274C \u5931\u8D25_";
+var GLYPH_OK = /* @__PURE__ */ new Set(["hit", "ok", "saved", "imported", "attempted", "changed", "pushed", "present", "cache"]);
+var GLYPH_SKIP = /* @__PURE__ */ new Set(["miss", "skipped", "unchanged", "none", "git"]);
+var GLYPH_FAIL = /* @__PURE__ */ new Set(["failed", "errors", "missing"]);
+var LEGEND_TRIGGER = /* @__PURE__ */ new Set(["miss", "failed", "errors", "missing"]);
+function needsLegend(statuses) {
+  return statuses.some((s) => LEGEND_TRIGGER.has(s.split(/\s/)[0]));
+}
+function glyphFor(status) {
+  if (GLYPH_OK.has(status) || GLYPH_OK.has(status.split(/\s/)[0])) {
+    return `\u2705 ${status}`;
+  }
+  if (GLYPH_SKIP.has(status) || GLYPH_SKIP.has(status.split(/\s/)[0])) {
+    return `\u23ED\uFE0F ${status}`;
+  }
+  if (GLYPH_FAIL.has(status) || GLYPH_FAIL.has(status.split(/\s/)[0])) {
+    return `\u274C ${status}`;
+  }
+  return status;
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   BRANCH_TEMPLATE,
@@ -301,6 +324,7 @@ function isZipArchive(buf) {
   DIR_TEMPLATE,
   EMPTY_TREE_HASH,
   KNOWN_SOURCES,
+  LEGEND,
   ValidationError,
   compareChecksums,
   computeChecksumMap,
@@ -308,11 +332,13 @@ function isZipArchive(buf) {
   countFiles,
   expandTemplate,
   generateSHA256SUMS,
+  glyphFor,
   hashFile,
   isDirectory,
   isFile,
   isZipArchive,
   listDataFiles,
+  needsLegend,
   parseChecksumFile,
   parseSources,
   readImportMarker,

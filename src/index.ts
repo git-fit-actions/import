@@ -8,12 +8,15 @@ import * as path from "path";
 import {
   EMPTY_TREE_HASH,
   KNOWN_SOURCES,
+  LEGEND,
   SourceConfig,
   SourceResult,
   computeTreeHashFromLS,
   generateSHA256SUMS,
+  glyphFor,
   isFile,
   isZipArchive,
+  needsLegend,
   parseSources,
   readImportMarker,
   resolveConfig,
@@ -323,7 +326,7 @@ async function processSource(
 
 function summaryTable(results: SourceResult[]): string {
   const escape = (s: string): string => s.replace(/\|/g, "\\|");
-  let out = "### GitFit import\n\n| Source | Status | data_hash | Details |\n|:---|:---:|:---:|:---|\n";
+  let out = `### GitFit import\n\n| Source | Status | data_hash | Details |\n|:---|:---:|:---:|:---|\n`;
   for (const r of results) {
     const title = KNOWN_SOURCES[r.source]?.title ?? r.source;
     const hash = r.dataHash ? r.dataHash.slice(0, 12) : "—";
@@ -333,9 +336,9 @@ function summaryTable(results: SourceResult[]): string {
         : r.status === "failed" && r.error
           ? r.error
           : "—";
-    out += `| ${escape(title)} | ${r.status} | ${hash} | ${escape(details)} |\n`;
+    out += `| ${escape(title)} | ${glyphFor(r.status)} | ${hash} | ${escape(details)} |\n`;
   }
-  return out;
+  return needsLegend(results.map((r) => r.status)) ? `${out}\n${LEGEND}` : out;
 }
 
 async function run(): Promise<void> {

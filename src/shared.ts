@@ -377,3 +377,50 @@ export function isZipArchive(buf: Buffer): boolean {
     (c === 0x07 && d === 0x08)
   );
 }
+
+/**
+ * Step-summary legend line, shared verbatim across all git-fit actions so a
+ * reader learns one glyph language. `✅` = fresh success, `⏭️` = expected
+ * no-change / fallback, `❌` = failure.
+ */
+export const LEGEND = "_✅ 正常产出 · ⏭️ 预料内无变化/兜底 · ❌ 失败_";
+
+const GLYPH_OK = new Set(["hit", "ok", "saved", "imported", "attempted", "changed", "pushed", "present", "cache"]);
+const GLYPH_SKIP = new Set(["miss", "skipped", "unchanged", "none", "git"]);
+const GLYPH_FAIL = new Set(["failed", "errors", "missing"]);
+
+/**
+ * Statuses that warrant the legend line — a fallback that changed the
+ * restore path (`miss`) or a failure (`failed`/`errors`/`missing`). Pure
+ * no-op statuses (`unchanged`/`skipped`) and fresh successes do not repeat
+ * the legend, keeping a normal run free of repeated legend lines.
+ */
+const LEGEND_TRIGGER = new Set(["miss", "failed", "errors", "missing"]);
+
+/**
+ * Whether a block should append the shared legend line: only when it holds at
+ * least one attention status, so a single workflow run does not repeat the
+ * legend across every normal block.
+ */
+export function needsLegend(statuses: string[]): boolean {
+  return statuses.some((s) => LEGEND_TRIGGER.has(s.split(/\s/)[0]));
+}
+
+/**
+ * Prefix a status word with a colored glyph so abnormal states jump out at a
+ * glance. Unknown statuses pass through unchanged (never mislabeled). The
+ * exact-key word is matched first; a status like `skipped (unchanged)` is
+ * matched by its leading word so it stays on the neutral glyph.
+ */
+export function glyphFor(status: string): string {
+  if (GLYPH_OK.has(status) || GLYPH_OK.has(status.split(/\s/)[0])) {
+    return `✅ ${status}`;
+  }
+  if (GLYPH_SKIP.has(status) || GLYPH_SKIP.has(status.split(/\s/)[0])) {
+    return `⏭️ ${status}`;
+  }
+  if (GLYPH_FAIL.has(status) || GLYPH_FAIL.has(status.split(/\s/)[0])) {
+    return `❌ ${status}`;
+  }
+  return status;
+}
